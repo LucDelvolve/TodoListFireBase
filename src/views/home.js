@@ -8,6 +8,7 @@ export default class Home {
     this.page = page;
     this.properties = {
       todo: '',
+      desc:'',
       todos: []
     };
 
@@ -24,7 +25,6 @@ export default class Home {
 
   template() {
     return html`
-      ${console.log(this.todos)}
       <section class="h-full">
         <div ?hidden="${!this.todos.length}">
           <header>
@@ -49,8 +49,17 @@ export default class Home {
                 @input="${e => this.properties.todo = e.target.value}"
                 class="py-3 px-4 rounded-sm w-full h-full"
                 type="text"
-                placeholder="Enter a new todo ..."
+                placeholder="Enter a new Title ..."
                 name="todo">
+
+                <input
+                autocomplete="off"
+                .value="${this.properties.desc}"
+                @input="${e => this.properties.desc = e.target.value}"
+                class="py-3 px-4 rounded-sm w-full h-full"
+                type="text"
+                placeholder="Enter a new Desc ..."
+                name="desc">
             </label>
             <button
               aria-label="Add"
@@ -76,11 +85,12 @@ export default class Home {
 
   handleForm(e) {
     e.preventDefault();
-    console.log(this.properties);
     if (this.properties.todo === '') return console.log('[todo] Value is required !!!');
     const todo = {
       id: Date.now(),
       title: this.properties.todo,
+      description: this.properties.desc,
+      state: "true",
       synced: 'true',
       updated: 'false',
       done: 'false',
@@ -88,10 +98,12 @@ export default class Home {
       date: Date.now()
     };
 
+    console.log(this.properties.todo);
+    console.log(this.properties.desc);
+
     const event = new CustomEvent('create-todo', { detail: todo });
     document.dispatchEvent(event);
 
-    console.log(this.properties.todo);
     // Clearing input
     this.properties.todo = null;
     const input = document.querySelector('[name="todo"]');
