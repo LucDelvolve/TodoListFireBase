@@ -1,25 +1,44 @@
 
 import page from 'page';
 import checkConnectivity from './network.js';
-import { fetchTodos, fetchTodo, createTodo, deleteTodo } from './api/todo.js';
-import { setTodos, setTodo, getTodos, unsetTodo } from './idb.js';
+import {
+  fetchTodos,
+  fetchTodo,
+  createTodo,
+  deleteTodo
+} from './api/todo.js';
+import {
+  setTodos,
+  setTodo,
+  getTodos,
+  unsetTodo
+} from './idb.js';
 
 checkConnectivity({});
 document.addEventListener('connection-changed', e => {
   document.offline = !e.detail;
   if (!document.offline) {
-    // Sync data ...
+    getTodos().then(value => {
+      if (value.synced === "false") {
+        createTodo(value).then(() => console.log("Added Todo to db"));
+        unsetTodo(value.id).then(() => console.log("Todo remove"));
+        value.synced = "true";
+        setTodo(value).then(() => console.log("Idb updated"));
+      }
+    });
+
   }
 });
 
-const app  = document.querySelector('#app .outlet');
+const app = document.querySelector('#app .outlet');
 
 fetch('/config.json')
   .then((result) => result.json())
   .then(async (config) => {
-    console.log('[todo] Config loaded !!!');
+    console.log('Config OK');
     window.config = config;
 
+    // Home
     page('/', async () => {
       const module = await import('./views/home.js');
       const Home = module.default;
@@ -28,6 +47,7 @@ fetch('/config.json')
       const homeView = new Home(ctn);
 
       let todos = [];
+
       if (!document.offline && navigator.onLine) {
         const data = await fetchTodos();
         todos = await setTodos(data);
@@ -40,7 +60,9 @@ fetch('/config.json')
       displayPage('Home');
 
       // Create todo
-      document.addEventListener('create-todo', async ({ detail: todo }) => {
+      document.addEventListener('create-todo', async ({
+        detail: todo
+      }) => {
         await setTodo(todo);
         if (!document.offline && navigator.onLine === true) {
           // If connection is good enought, do thte HTTP call
@@ -48,7 +70,7 @@ fetch('/config.json')
           if (result !== false) {
             // If we successfuly get a result from API
             // Get the updated todo list
-            const todos  = await getTodos();
+            const todos = await getTodos();
             // Rerender the template
             homeView.todos = todos;
             return homeView.renderView();
@@ -63,7 +85,10 @@ fetch('/config.json')
         }
       });
 
-      document.addEventListener('delete-todo', async ({ detail }) => {
+      // Delete Todo
+      document.addEventListener('delete-todo', async ({
+        detail
+      }) => {
         if (!document.offline && navigator.onLine === true) {
           const result = await deleteTodo(detail.id);
           if (result !== false) {
@@ -71,7 +96,9 @@ fetch('/config.json')
             // Get the updated todo list
             const todo = await unsetTodo(detail.id);
             // Rerender the template
-            return document.dispatchEvent(new CustomEvent('render-view', { detail: todo }));
+            return document.dispatchEvent(new CustomEvent('render-view', {
+              detail: todo
+            }));
           }
           // In case of an error
           detail.deleted = 'true';
@@ -79,15 +106,33 @@ fetch('/config.json')
       });
     });
 
+    // Welcome Start Page
+    page('/start', async () => {
+      const module = await import('./views/start');
+      const Start = module.default;
+
+      const ctn = app.querySelector('[page="Start"]');
+      const startView = new Start(ctn);
+
+      startView.renderView();
+      displayPage('Start');
+      console.log("Start Page Load")
+    });
+
+    // 404 Page
+    page('*', function () {
+      console.log("Not Found")
+    });
+
     page();
   });
 
-  function displayPage(page) {
-    const skeleton = document.querySelector('#app .skeleton');
-    skeleton.removeAttribute('hidden');
-    const pages = app.querySelectorAll('[page]');
-    pages.forEach(page => page.removeAttribute('active'));
-    skeleton.setAttribute('hidden', 'true');
-    const p = app.querySelector(`[page="${page}"]`);
-    p.setAttribute('active', true);
-  }
+function displayPage(page) {
+  const skeleton = document.querySelector('#app .skeleton');
+  skeleton.removeAttribute('hidden');
+  const pages = app.querySelectorAll('[page]');
+  pages.forEach(page => page.removeAttribute('active'));
+  skeleton.setAttribute('hidden', 'true');
+  const p = app.querySelector(`[page="${page}"]`);
+  p.setAttribute('active', true);
+}
