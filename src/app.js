@@ -1,7 +1,8 @@
+
 import page from 'page';
 import checkConnectivity from './network.js';
-import { fetchTodo, createTodo } from './api/todo.js';
-import { setTodos, setTodo, getTodos } from './idb.js';
+import { fetchTodos, fetchTodo, createTodo, deleteTodo } from './api/todo.js';
+import { setTodos, setTodo, getTodos, unsetTodo } from './idb.js';
 
 checkConnectivity({});
 document.addEventListener('connection-changed', e => {
@@ -27,9 +28,9 @@ fetch('/config.json')
       const homeView = new Home(ctn);
 
       let todos = [];
-      if (navigator.onLine) {
-        const data = await fetchTodo();
-        todos = await setTodos(data); 
+      if (!document.offline && navigator.onLine) {
+        const data = await fetchTodos();
+        todos = await setTodos(data);
       } else {
         todos = await getTodos() || [];
       }
@@ -38,6 +39,7 @@ fetch('/config.json')
       homeView.renderView();
       displayPage('Home');
 
+      // Create todo
       document.addEventListener('create-todo', async ({ detail: todo }) => {
         await setTodo(todo);
         if (!document.offline && navigator.onLine === true) {
@@ -58,6 +60,21 @@ fetch('/config.json')
           // Rerender the template
           homeView.todos = todos;
           return homeView.renderView();
+        }
+      });
+
+      document.addEventListener('delete-todo', async ({ detail }) => {
+        if (!document.offline && navigator.onLine === true) {
+          const result = await deleteTodo(detail.id);
+          if (result !== false) {
+            // If we successfuly get a result from API
+            // Get the updated todo list
+            const todo = await unsetTodo(detail.id);
+            // Rerender the template
+            return document.dispatchEvent(new CustomEvent('render-view', { detail: todo }));
+          }
+          // In case of an error
+          detail.deleted = 'true';
         }
       });
     });
